@@ -2,17 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AccountSettingsPage extends StatefulWidget {
+  final Function(bool) onThemeChanged;
+
+  AccountSettingsPage({required this.onThemeChanged});
+
   @override
   _AccountSettingsPageState createState() => _AccountSettingsPageState();
 }
 
 class _AccountSettingsPageState extends State<AccountSettingsPage> {
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _bioController = TextEditingController();
+  final TextEditingController _profilePictureUrlController =
+      TextEditingController();
+
   bool _isPublicProfile = true;
-  String _username = '';
-  String _bio = '';
-  String _profilePictureUrl = '';
   String _language = 'English';
   bool _twoFactorAuth = false;
   bool _emailNotifications = true;
@@ -31,10 +39,13 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   void _loadSettings() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
+      _firstNameController.text = prefs.getString('firstName') ?? '';
+      _lastNameController.text = prefs.getString('lastName') ?? '';
       _emailController.text = prefs.getString('email') ?? '';
-      _username = prefs.getString('username') ?? '';
-      _bio = prefs.getString('bio') ?? '';
-      _profilePictureUrl = prefs.getString('profilePictureUrl') ?? '';
+      _usernameController.text = prefs.getString('username') ?? '';
+      _bioController.text = prefs.getString('bio') ?? '';
+      _profilePictureUrlController.text =
+          prefs.getString('profilePictureUrl') ?? '';
       _language = prefs.getString('language') ?? 'English';
       _twoFactorAuth = prefs.getBool('twoFactorAuth') ?? false;
       _emailNotifications = prefs.getBool('emailNotifications') ?? true;
@@ -42,23 +53,55 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       _showOnlineStatus = prefs.getBool('showOnlineStatus') ?? true;
       _saveLoginInfo = prefs.getBool('saveLoginInfo') ?? false;
       _darkMode = prefs.getBool('darkMode') ?? false;
+      widget.onThemeChanged(_darkMode);
     });
   }
 
   // Salva le impostazioni
   void _saveSettings() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('email', _emailController.text);
-    prefs.setString('username', _username);
-    prefs.setString('bio', _bio);
-    prefs.setString('profilePictureUrl', _profilePictureUrl);
-    prefs.setString('language', _language);
-    prefs.setBool('twoFactorAuth', _twoFactorAuth);
-    prefs.setBool('emailNotifications', _emailNotifications);
-    prefs.setBool('pushNotifications', _pushNotifications);
-    prefs.setBool('showOnlineStatus', _showOnlineStatus);
-    prefs.setBool('saveLoginInfo', _saveLoginInfo);
-    prefs.setBool('darkMode', _darkMode);
+    await prefs.setString('firstName', _firstNameController.text);
+    await prefs.setString('lastName', _lastNameController.text);
+    await prefs.setString('email', _emailController.text);
+    await prefs.setString('username', _usernameController.text);
+    await prefs.setString('bio', _bioController.text);
+    await prefs.setString(
+        'profilePictureUrl', _profilePictureUrlController.text);
+    await prefs.setString('language', _language);
+    await prefs.setBool('twoFactorAuth', _twoFactorAuth);
+    await prefs.setBool('emailNotifications', _emailNotifications);
+    await prefs.setBool('pushNotifications', _pushNotifications);
+    await prefs.setBool('showOnlineStatus', _showOnlineStatus);
+    await prefs.setBool('saveLoginInfo', _saveLoginInfo);
+    await prefs.setBool('darkMode', _darkMode);
+    Navigator.pop(context); // Torna alla pagina precedente dopo il salvataggio
+  }
+
+  // Mostra un dialogo di conferma per il logout
+  void _showLogoutConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Conferma Logout'),
+          content: Text('Sei sicuro di voler effettuare il logout?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('No'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Chiudi il dialogo
+              },
+            ),
+            TextButton(
+              child: Text('Sì'),
+              onPressed: () {
+                Navigator.of(context).pushReplacementNamed('/login');
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -75,121 +118,121 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         actions: [
           IconButton(
             icon: Icon(Icons.save),
-            onPressed: () {
-              _saveSettings();
-              Navigator.pop(context); // Torna alla pagina precedente
-            },
+            onPressed: _saveSettings, // Salva e torna alla pagina precedente
           ),
         ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: InputDecoration(labelText: 'Email'),
-            ),
-            TextField(
-              controller: _passwordController,
-              decoration: InputDecoration(labelText: 'New Password'),
-              obscureText: true,
-            ),
-            TextField(
-              decoration: InputDecoration(labelText: 'Username'),
-              onChanged: (value) {
-                setState(() {
-                  _username = value;
-                });
-              },
-            ),
-            TextField(
-              decoration: InputDecoration(labelText: 'Bio'),
-              onChanged: (value) {
-                setState(() {
-                  _bio = value;
-                });
-              },
-            ),
-            TextField(
-              decoration: InputDecoration(labelText: 'Profile Picture URL'),
-              onChanged: (value) {
-                setState(() {
-                  _profilePictureUrl = value;
-                });
-              },
-            ),
-            DropdownButton<String>(
-              value: _language,
-              items: <String>['English', 'Italian', 'Spanish', 'French']
-                  .map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                setState(() {
-                  _language = newValue!;
-                });
-              },
-              hint: Text('Select Language'),
-            ),
-            SwitchListTile(
-              title: Text('Enable Two-Factor Authentication'),
-              value: _twoFactorAuth,
-              onChanged: (bool value) {
-                setState(() {
-                  _twoFactorAuth = value;
-                });
-              },
-            ),
-            SwitchListTile(
-              title: Text('Email Notifications'),
-              value: _emailNotifications,
-              onChanged: (bool value) {
-                setState(() {
-                  _emailNotifications = value;
-                });
-              },
-            ),
-            SwitchListTile(
-              title: Text('Push Notifications'),
-              value: _pushNotifications,
-              onChanged: (bool value) {
-                setState(() {
-                  _pushNotifications = value;
-                });
-              },
-            ),
-            SwitchListTile(
-              title: Text('Show Online Status'),
-              value: _showOnlineStatus,
-              onChanged: (bool value) {
-                setState(() {
-                  _showOnlineStatus = value;
-                });
-              },
-            ),
-            SwitchListTile(
-              title: Text('Save Login Information'),
-              value: _saveLoginInfo,
-              onChanged: (bool value) {
-                setState(() {
-                  _saveLoginInfo = value;
-                });
-              },
-            ),
-            SwitchListTile(
-              title: Text('Dark Mode'),
-              value: _darkMode,
-              onChanged: (bool value) {
-                setState(() {
-                  _darkMode = value;
-                });
-              },
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(
+                controller: _firstNameController,
+                decoration: InputDecoration(labelText: 'Nome'),
+              ),
+              TextField(
+                controller: _lastNameController,
+                decoration: InputDecoration(labelText: 'Cognome'),
+              ),
+              TextField(
+                controller: _emailController,
+                decoration: InputDecoration(labelText: 'Email'),
+              ),
+              TextField(
+                controller: _passwordController,
+                decoration: InputDecoration(labelText: 'New Password'),
+                obscureText: true,
+              ),
+              TextField(
+                controller: _usernameController,
+                decoration: InputDecoration(labelText: 'Username'),
+              ),
+              TextField(
+                controller: _bioController,
+                decoration: InputDecoration(labelText: 'Bio'),
+              ),
+              TextField(
+                controller: _profilePictureUrlController,
+                decoration: InputDecoration(labelText: 'Sito web'),
+              ),
+              DropdownButton<String>(
+                value: _language,
+                items: <String>['English', 'Italian', 'Spanish', 'French']
+                    .map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _language = newValue!;
+                  });
+                },
+                hint: Text('Select Language'),
+              ),
+              SwitchListTile(
+                title: Text('Enable Two-Factor Authentication'),
+                value: _twoFactorAuth,
+                onChanged: (bool value) {
+                  setState(() {
+                    _twoFactorAuth = value;
+                  });
+                },
+              ),
+              SwitchListTile(
+                title: Text('Email Notifications'),
+                value: _emailNotifications,
+                onChanged: (bool value) {
+                  setState(() {
+                    _emailNotifications = value;
+                  });
+                },
+              ),
+              SwitchListTile(
+                title: Text('Push Notifications'),
+                value: _pushNotifications,
+                onChanged: (bool value) {
+                  setState(() {
+                    _pushNotifications = value;
+                  });
+                },
+              ),
+              SwitchListTile(
+                title: Text('Show Online Status'),
+                value: _showOnlineStatus,
+                onChanged: (bool value) {
+                  setState(() {
+                    _showOnlineStatus = value;
+                  });
+                },
+              ),
+              SwitchListTile(
+                title: Text('Save Login Information'),
+                value: _saveLoginInfo,
+                onChanged: (bool value) {
+                  setState(() {
+                    _saveLoginInfo = value;
+                  });
+                },
+              ),
+              SwitchListTile(
+                title: Text('Dark Mode'),
+                value: _darkMode,
+                onChanged: (bool value) {
+                  setState(() {
+                    _darkMode = value;
+                    widget.onThemeChanged(value); // Aggiorna il tema globale
+                  });
+                },
+              ),
+              ElevatedButton(
+                onPressed: _showLogoutConfirmation,
+                child: Text('Log Out'),
+              ),
+            ],
+          ),
         ),
       ),
     );

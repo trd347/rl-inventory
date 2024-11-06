@@ -55,6 +55,8 @@ class AppLocalizations {
     },
   };
 
+  static var delegate;
+
   String? translate(String key) {
     return _localizedValues[locale.languageCode]?[key];
   }

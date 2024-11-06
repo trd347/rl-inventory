@@ -4,19 +4,19 @@ import 'notification_settings_page.dart';
 import 'privacy_settings_page.dart';
 import 'help_support_page.dart';
 import 'about_page.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class SettingsPage extends StatelessWidget {
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
+
+  SettingsPage({required this.flutterLocalNotificationsPlugin});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Settings'),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        // Rimosso il tasto di ritorno
       ),
       body: ListView(
         children: [
@@ -25,7 +25,10 @@ class SettingsPage extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => AccountSettingsPage()),
+                MaterialPageRoute(
+                    builder: (context) => AccountSettingsPage(
+                          onThemeChanged: (bool) {},
+                        )),
               );
             },
           ),
@@ -35,7 +38,10 @@ class SettingsPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => NotificationSettingsPage()),
+                    builder: (context) => NotificationSettingsPage(
+                          flutterLocalNotificationsPlugin:
+                              flutterLocalNotificationsPlugin,
+                        )),
               );
             },
           ),

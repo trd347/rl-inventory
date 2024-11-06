@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RegistrationPage extends StatefulWidget {
+  final Function onRegistration;
+
+  RegistrationPage(
+      {required this.onRegistration}); // Aggiungi la funzione nel costruttore
+
   @override
   _RegistrationPageState createState() => _RegistrationPageState();
 }
@@ -18,7 +24,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
   bool _isTermsAccepted = false;
 
-  void _register() {
+  void _register() async {
     String firstName = _firstNameController.text;
     String lastName = _lastNameController.text;
     String birthDate = _birthDateController.text;
@@ -35,23 +41,75 @@ class _RegistrationPageState extends State<RegistrationPage> {
         email.isNotEmpty &&
         password.isNotEmpty &&
         password == confirmPassword) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('firstName', firstName);
+      await prefs.setString('lastName', lastName);
+      await prefs.setString('username', username);
+      await prefs.setString('email', email);
+
+      widget
+          .onRegistration(); // Chiama la funzione di registrazione passata dal MyApp
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(_isTermsAccepted
-                ? 'Per favore, compila tutti i campi correttamente.'
-                : 'Devi accettare i Termini e Condizioni.')),
+          content: Text(_isTermsAccepted
+              ? 'Per favore, compila tutti i campi correttamente.'
+              : 'Devi accettare i Termini e Condizioni.'),
+        ),
       );
     }
   }
 
+  // Funzione per la formattazione della data di nascita
   void _formatBirthDate(String value) {
-    if (value.length == 2 || value.length == 5) {
-      _birthDateController.text = "$value/";
-      _birthDateController.selection = TextSelection.fromPosition(
-          TextPosition(offset: _birthDateController.text.length));
+    final currentText = value.replaceAll('/', '');
+    String formattedText = '';
+
+    if (currentText.length >= 2) {
+      String day = currentText.substring(0, 2);
+      int dayInt = int.tryParse(day) ?? 0;
+      if (dayInt > 31) {
+        day = '31';
+      }
+      formattedText = '$day/';
+    } else {
+      formattedText = currentText;
     }
+
+    if (currentText.length >= 4) {
+      String month = currentText.substring(2, 4);
+      int monthInt = int.tryParse(month) ?? 0;
+      if (monthInt > 12) {
+        month = '12';
+      }
+      formattedText += '$month/';
+    } else {
+      if (currentText.length > 2) {
+        formattedText += currentText.substring(2);
+      }
+    }
+
+    if (currentText.length >= 8) {
+      String year = currentText.substring(4, 8);
+      int yearInt = int.tryParse(year) ?? 1900;
+      int currentYear = DateTime.now().year;
+      if (yearInt < 1900) {
+        year = '1900';
+      } else if (yearInt > currentYear) {
+        year = currentYear.toString();
+      }
+      formattedText += year;
+    } else {
+      if (currentText.length > 4) {
+        formattedText += currentText.substring(4);
+      }
+    }
+
+    _birthDateController.value = TextEditingValue(
+      text: formattedText,
+      selection: TextSelection.collapsed(offset: formattedText.length),
+    );
   }
 
   @override
@@ -117,8 +175,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 ),
                 GestureDetector(
                   onTap: () {
-                    Navigator.pushNamed(context,
-                        '/terms'); // Naviga alla pagina Termini e Condizioni
+                    Navigator.pushNamed(context, '/terms');
                   },
                   child: Text(
                     'Accetto i Termini e Condizioni',

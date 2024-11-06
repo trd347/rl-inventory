@@ -9,24 +9,13 @@ class AboutPage extends StatelessWidget {
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context); // Torna alla pagina precedente
+            // Cambiato per tornare alla pagina delle impostazioni
+            Navigator.pop(context);
           },
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Real Life Inventory App'),
-            SizedBox(height: 10),
-            Text('Version: 1.0.0'),
-            SizedBox(height: 10),
-            Text('This app helps you manage your inventory effectively.'),
-            SizedBox(height: 10),
-            Text('Contact: support@example.com'),
-          ],
-        ),
+      body: Center(
+        child: Text('Fatti i cazzi tuoi con tanto amore'),
       ),
     );
   }
