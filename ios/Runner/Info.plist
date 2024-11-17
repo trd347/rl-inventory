@@ -64,3 +64,17 @@
     <string>Light</string> <!-- Opzionale, se vuoi che l'app abbia un tema chiaro di default -->
 </dict>
 </plist>
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>We need access to Bluetooth to connect to your devices.</string>
+<key>NSBluetoothPeripheralUsageDescription</key>
+<string>We need access to Bluetooth to connect to your devices.</string>
+<key>NSFaceIDUsageDescription</key>
+<string>We use Face ID for secure authentication.</string>
+<key>NSBiometricUsageDescription</key>
+<string>We use biometric authentication for secure access.</string>
+<key>NSLocalNetworkUsageDescription</key>
+<string>We need access to your local network to connect to your devices.</string>
+<key>NFCReaderUsageDescription</key>
+<string>We use NFC to scan your tags.</string>
+<key>NSUserNotificationAlert</key>
+<string>We use notifications to alert you about updates.</string>

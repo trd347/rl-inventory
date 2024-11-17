@@ -20,8 +20,8 @@ void main() {
 
     // Verifica che la LoginPage venga caricata correttamente
     expect(find.byType(LoginPage), findsOneWidget);
-    expect(find.text('Login'),
-        findsOneWidget); // Verifica che il testo "Login" sia presente
+    expect(find.text('Welcome in Real Life Inventory'),
+        findsOneWidget); // Verifica che il testo di benvenuto sia presente
   });
 
   testWidgets('Navigating from LoginPage to HomePage',
@@ -37,8 +37,8 @@ void main() {
           flutterLocalNotificationsPlugin, // Passa il plugin
     ));
 
-    // Trova il pulsante di login
-    final loginButton = find.byType(ElevatedButton);
+    // Trova il pulsante di login usando il Key
+    final loginButton = find.byKey(Key('loginButton'));
 
     // Simula il tocco sul pulsante di login
     await tester.tap(loginButton);

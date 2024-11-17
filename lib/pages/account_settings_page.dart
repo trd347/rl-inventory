@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
 
 class AccountSettingsPage extends StatefulWidget {
-  final Function(bool) onThemeChanged;
+  final Function(dynamic primary, dynamic secondary) onThemeChanged;
 
   AccountSettingsPage({required this.onThemeChanged});
 
@@ -27,7 +28,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   bool _pushNotifications = true;
   bool _showOnlineStatus = true;
   bool _saveLoginInfo = false;
-  bool _darkMode = false;
+  bool _useBiometricAuth = false;
+
+  final LocalAuthentication auth = LocalAuthentication();
 
   @override
   void initState() {
@@ -52,8 +55,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       _pushNotifications = prefs.getBool('pushNotifications') ?? true;
       _showOnlineStatus = prefs.getBool('showOnlineStatus') ?? true;
       _saveLoginInfo = prefs.getBool('saveLoginInfo') ?? false;
-      _darkMode = prefs.getBool('darkMode') ?? false;
-      widget.onThemeChanged(_darkMode);
+      _useBiometricAuth = prefs.getBool('useBiometricAuth') ?? false;
     });
   }
 
@@ -73,7 +75,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     await prefs.setBool('pushNotifications', _pushNotifications);
     await prefs.setBool('showOnlineStatus', _showOnlineStatus);
     await prefs.setBool('saveLoginInfo', _saveLoginInfo);
-    await prefs.setBool('darkMode', _darkMode);
+    await prefs.setBool('useBiometricAuth', _useBiometricAuth);
     Navigator.pop(context); // Torna alla pagina precedente dopo il salvataggio
   }
 
@@ -218,18 +220,33 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 },
               ),
               SwitchListTile(
-                title: Text('Dark Mode'),
-                value: _darkMode,
-                onChanged: (bool value) {
-                  setState(() {
-                    _darkMode = value;
-                    widget.onThemeChanged(value); // Aggiorna il tema globale
-                  });
+                title: Text('Use Biometric Authentication'),
+                value: _useBiometricAuth,
+                onChanged: (bool value) async {
+                  bool canCheckBiometrics = await auth.canCheckBiometrics;
+                  if (canCheckBiometrics) {
+                    setState(() {
+                      _useBiometricAuth = value;
+                    });
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Biometric authentication not available'),
+                      ),
+                    );
+                  }
                 },
               ),
               ElevatedButton(
                 onPressed: _showLogoutConfirmation,
                 child: Text('Log Out'),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/theme-settings');
+                },
+                child: Text('Theme Settings'),
               ),
             ],
           ),

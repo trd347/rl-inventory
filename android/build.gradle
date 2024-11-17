@@ -1,7 +1,22 @@
+buildscript {
+    ext.kotlin_version = '1.8.0'
+    repositories {
+        google()
+        mavenCentral()
+        jcenter() // Mantenuto per compatibilità con alcune vecchie dipendenze
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:8.0.2"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "com.google.gms:google-services:4.3.14" // Aggiunta per eventuale integrazione di servizi Google
+    }
+}
+
 allprojects {
     repositories {
         google()
         mavenCentral()
+        jcenter() // Mantenuto per compatibilità con vecchie dipendenze
     }
 }
 

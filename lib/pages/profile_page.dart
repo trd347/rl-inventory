@@ -1,5 +1,5 @@
 import 'dart:convert'; // Per la codifica e decodifica base64
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -12,8 +12,8 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final ImagePicker _picker = ImagePicker();
-  File? _profileImage;
-  File? _coverImage;
+  Uint8List? _profileImage;
+  Uint8List? _coverImage;
   String _username = '';
   String _bio = '';
 
@@ -33,27 +33,34 @@ class _ProfilePageState extends State<ProfilePage> {
       // Carica le immagini (in formato base64) e decodifica se esistono
       String? encodedProfileImage = prefs.getString('profileImage');
       if (encodedProfileImage != null) {
-        _profileImage = File.fromRawPath(base64Decode(encodedProfileImage));
+        _profileImage = base64Decode(encodedProfileImage);
       }
 
       String? encodedCoverImage = prefs.getString('coverImage');
       if (encodedCoverImage != null) {
-        _coverImage = File.fromRawPath(base64Decode(encodedCoverImage));
+        _coverImage = base64Decode(encodedCoverImage);
       }
     });
   }
 
   // Salva le immagini in SharedPreferences come base64
-  Future<void> _saveProfileImage(File image) async {
+  Future<void> _saveProfileImage(Uint8List imageBytes) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String encodedImage = base64Encode(await image.readAsBytes());
+    String encodedImage = base64Encode(imageBytes);
     prefs.setString('profileImage', encodedImage);
   }
 
-  Future<void> _saveCoverImage(File image) async {
+  Future<void> _saveCoverImage(Uint8List imageBytes) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String encodedImage = base64Encode(await image.readAsBytes());
+    String encodedImage = base64Encode(imageBytes);
     prefs.setString('coverImage', encodedImage);
+  }
+
+  // Salva il nome utente e la bio
+  Future<void> _saveProfileData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('username', _username);
+    prefs.setString('bio', _bio);
   }
 
   // Controlla e richiede le autorizzazioni
@@ -76,13 +83,14 @@ class _ProfilePageState extends State<ProfilePage> {
       try {
         final pickedFile = await _picker.pickImage(source: source);
         if (pickedFile != null) {
+          Uint8List imageBytes = await pickedFile.readAsBytes();
           setState(() {
             if (isProfile) {
-              _profileImage = File(pickedFile.path);
-              _saveProfileImage(_profileImage!);
+              _profileImage = imageBytes;
+              _saveProfileImage(imageBytes);
             } else {
-              _coverImage = File(pickedFile.path);
-              _saveCoverImage(_coverImage!);
+              _coverImage = imageBytes;
+              _saveCoverImage(imageBytes);
             }
           });
         }
@@ -131,7 +139,15 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Profilo'),
-        // Rimosso il tasto di ritorno
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.home),
+            onPressed: () {
+              Navigator.pushNamed(context, '/home');
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -145,7 +161,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 decoration: BoxDecoration(
                   image: _coverImage != null
                       ? DecorationImage(
-                          image: FileImage(_coverImage!),
+                          image: MemoryImage(_coverImage!),
                           fit: BoxFit.cover,
                         )
                       : null,
@@ -164,8 +180,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 onTap: () => _showImageSourceDialog(true),
                 child: CircleAvatar(
                   radius: 50,
-                  backgroundImage:
-                      _profileImage != null ? FileImage(_profileImage!) : null,
+                  backgroundImage: _profileImage != null
+                      ? MemoryImage(_profileImage!)
+                      : null,
                   child: _profileImage == null ? Icon(Icons.camera_alt) : null,
                 ),
               ),
@@ -176,14 +193,22 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _username,
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  TextField(
+                    decoration: InputDecoration(labelText: 'Username'),
+                    controller: TextEditingController(text: _username),
+                    onChanged: (value) {
+                      _username = value;
+                      _saveProfileData();
+                    },
                   ),
                   SizedBox(height: 4),
-                  Text(
-                    _bio,
-                    style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                  TextField(
+                    decoration: InputDecoration(labelText: 'Bio'),
+                    controller: TextEditingController(text: _bio),
+                    onChanged: (value) {
+                      _bio = value;
+                      _saveProfileData();
+                    },
                   ),
                 ],
               ),

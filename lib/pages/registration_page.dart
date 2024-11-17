@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
 
 class RegistrationPage extends StatefulWidget {
   final Function onRegistration;
@@ -23,6 +24,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       TextEditingController();
 
   bool _isTermsAccepted = false;
+  bool _useBiometricAuth = false;
 
   void _register() async {
     String firstName = _firstNameController.text;
@@ -46,6 +48,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       await prefs.setString('lastName', lastName);
       await prefs.setString('username', username);
       await prefs.setString('email', email);
+      await prefs.setBool('useBiometricAuth', _useBiometricAuth);
 
       widget
           .onRegistration(); // Chiama la funzione di registrazione passata dal MyApp
@@ -186,6 +189,15 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   ),
                 ),
               ],
+            ),
+            SwitchListTile(
+              title: Text('Abilita Autenticazione Biomentrica'),
+              value: _useBiometricAuth,
+              onChanged: (bool value) {
+                setState(() {
+                  _useBiometricAuth = value;
+                });
+              },
             ),
             ElevatedButton(
               onPressed: _register,

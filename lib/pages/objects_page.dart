@@ -1,42 +1,52 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:rl_inventory/pages/home_page.dart'; // Importa la HomePage
-import 'package:flutter_nfc_kit/flutter_nfc_kit.dart'; // Importa la libreria NFC
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_nfc_kit/flutter_nfc_kit.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // Importa il plugin delle notifiche
-import 'package:permission_handler/permission_handler.dart'; // Importa il pacchetto per la gestione dei permessi
+import 'package:rl_inventory/managers/inventory_manager.dart';
+import 'package:rl_inventory/pages/containers_page.dart' as containers_page;
 
 class Object {
   String name;
   String description;
+  String containerName;
 
-  Object({required this.name, required this.description});
+  Object({
+    required this.name,
+    required this.description,
+    this.containerName = '',
+  });
 
-  // Metodo per convertire un oggetto in un formato JSON
   Map<String, dynamic> toJson() {
     return {
       'name': name,
       'description': description,
+      'containerName': containerName,
     };
   }
 
-  // Metodo per creare un oggetto da un formato JSON
   factory Object.fromJson(Map<String, dynamic> json) {
     return Object(
       name: json['name'],
       description: json['description'],
+      containerName: json['containerName'] ?? '',
     );
   }
 }
 
 class ObjectsPage extends StatefulWidget {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
-  final Function(List<Object>)
-      onObjectsUpdated; // Callback per aggiornare la HomePage
+  final Function(List<Object>) onObjectsUpdated;
+  final Function updateInventory;
+  final List<containers_page.Container> containers;
 
-  ObjectsPage(
-      {required this.flutterLocalNotificationsPlugin,
-      required this.onObjectsUpdated});
+  ObjectsPage({
+    required this.flutterLocalNotificationsPlugin,
+    required this.onObjectsUpdated,
+    required this.updateInventory,
+    required this.containers,
+  });
 
   @override
   _ObjectsPageState createState() => _ObjectsPageState();
@@ -44,33 +54,41 @@ class ObjectsPage extends StatefulWidget {
 
 class _ObjectsPageState extends State<ObjectsPage> {
   List<Object> _objects = [];
+  final InventoryManager _inventoryManager = InventoryManager();
 
   @override
   void initState() {
     super.initState();
     _loadObjects();
+    _inventoryManager.addListener(_updateUI);
   }
 
-  // Carica gli oggetti da SharedPreferences
-  void _loadObjects() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? jsonString = prefs.getString('objects');
-    if (jsonString != null) {
-      List<dynamic> jsonList = json.decode(jsonString);
-      _objects = jsonList.map((json) => Object.fromJson(json)).toList();
-      setState(() {});
-    }
+  @override
+  void dispose() {
+    _inventoryManager.removeListener(_updateUI);
+    super.dispose();
   }
 
-  // Salva gli oggetti in SharedPreferences
-  void _saveObjects() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String jsonString =
-        json.encode(_objects.map((object) => object.toJson()).toList());
-    await prefs.setString('objects', jsonString);
+  Future<void> _loadObjects() async {
+    List<Map<String, dynamic>> objectsData =
+        await _inventoryManager.loadObjects();
+    setState(() {
+      _objects = objectsData.map((data) => Object.fromJson(data)).toList();
+    });
   }
 
-  // Funzione per inviare la notifica
+  Future<void> _saveObjects() async {
+    List<Map<String, dynamic>> objectsData =
+        _objects.map((object) => object.toJson()).toList();
+    await _inventoryManager.saveObjects(objectsData);
+    widget.onObjectsUpdated(_objects);
+    widget.updateInventory();
+  }
+
+  void _updateUI() {
+    _loadObjects();
+  }
+
   Future<void> _showNotification(String title, String body) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
@@ -94,26 +112,24 @@ class _ObjectsPageState extends State<ObjectsPage> {
     );
   }
 
-  // Funzione per verificare e richiedere i permessi di notifica
   Future<bool> _checkAndRequestPermissions() async {
-    if (await Permission.notification.isGranted) {
-      return true;
-    } else {
-      var result = await Permission.notification.request();
-      return result.isGranted;
-    }
+    var status = await [
+      Permission.notification,
+      Permission.bluetooth,
+      Permission.bluetoothConnect,
+      Permission.bluetoothScan,
+    ].request();
+    return status.values.every((permission) => permission.isGranted);
   }
 
-  // Funzione per aggiungere un oggetto con notifica
-  Future<void> _addObject(String name, String description) async {
+  Future<void> _addObject(String name, String description,
+      {String containerName = ''}) async {
     setState(() {
-      _objects.add(Object(name: name, description: description));
-      _saveObjects();
-      widget.onObjectsUpdated(
-          _objects); // Passa gli oggetti aggiornati a HomePage
+      _objects.add(Object(
+          name: name, description: description, containerName: containerName));
     });
+    _saveObjects();
 
-    // Controlla e richiedi i permessi prima di mostrare la notifica
     if (await _checkAndRequestPermissions()) {
       _showNotification(
           'New Object Added', '$name has been added to your objects.');
@@ -124,23 +140,77 @@ class _ObjectsPageState extends State<ObjectsPage> {
     }
   }
 
-  void _editObject(int index, String name, String description) {
-    setState(() {
-      _objects[index].name = name;
-      _objects[index].description = description;
-      _saveObjects();
-      widget.onObjectsUpdated(
-          _objects); // Passa gli oggetti aggiornati a HomePage
-    });
-  }
+  void _showAddObjectDialog() {
+    String name = '';
+    String description = '';
+    String? selectedContainer;
 
-  void _removeObject(int index) {
-    setState(() {
-      _objects.removeAt(index);
-      _saveObjects();
-      widget.onObjectsUpdated(
-          _objects); // Passa gli oggetti aggiornati a HomePage
-    });
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Add New Object'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration: InputDecoration(labelText: 'Name'),
+                onChanged: (value) {
+                  name = value;
+                },
+              ),
+              TextField(
+                decoration: InputDecoration(labelText: 'Description'),
+                onChanged: (value) {
+                  description = value;
+                },
+              ),
+              DropdownButton<String>(
+                isExpanded: true,
+                value: selectedContainer,
+                items: widget.containers
+                    .map((container) => DropdownMenuItem<String>(
+                          value: container.name,
+                          child: Text(container.name),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedContainer = value;
+                  });
+                },
+                hint: Text("Select a container"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                if (name.isNotEmpty && description.isNotEmpty) {
+                  _addObject(
+                    name,
+                    description,
+                    containerName: selectedContainer ?? '',
+                  );
+                  Navigator.of(context).pop();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Please fill all fields')),
+                  );
+                }
+              },
+              child: Text('Add'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _scanNFC() async {
@@ -180,70 +250,6 @@ class _ObjectsPageState extends State<ObjectsPage> {
     }
   }
 
-  void _showEditDialog(int index) {
-    String name = _objects[index].name;
-    String description = _objects[index].description;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Edit Object'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: InputDecoration(labelText: 'Name'),
-                controller: TextEditingController(text: name),
-                onChanged: (value) {
-                  name = value;
-                },
-              ),
-              TextField(
-                decoration: InputDecoration(labelText: 'Description'),
-                controller: TextEditingController(text: description),
-                onChanged: (value) {
-                  description = value;
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                _editObject(index, name, description);
-                Navigator.of(context).pop();
-              },
-              child: Text('Save'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Cancel'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Funzione per tornare alla homepage
-  void goBackToHome() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => HomePage(
-          flutterLocalNotificationsPlugin:
-              widget.flutterLocalNotificationsPlugin,
-          updateInventory: (List<Object> objects) {
-            // Qui puoi definire il comportamento per l'aggiornamento dell'inventario
-          },
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -261,22 +267,45 @@ class _ObjectsPageState extends State<ObjectsPage> {
         itemBuilder: (context, index) {
           return ListTile(
             title: Text(_objects[index].name),
-            subtitle: Text(_objects[index].description),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(Icons.edit),
-                  onPressed: () => _showEditDialog(index),
-                ),
-                IconButton(
-                  icon: Icon(Icons.delete),
-                  onPressed: () => _removeObject(index),
-                ),
-              ],
+            subtitle: Text(_objects[index].description +
+                (_objects[index].containerName.isNotEmpty
+                    ? ' (In container: ${_objects[index].containerName})'
+                    : '')),
+            trailing: IconButton(
+              icon: Icon(Icons.delete),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('Delete Object'),
+                    content:
+                        Text('Are you sure you want to delete this object?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _objects.removeAt(index);
+                          });
+                          _saveObjects();
+                          Navigator.of(context).pop();
+                        },
+                        child: Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddObjectDialog,
+        child: Icon(Icons.add),
       ),
     );
   }

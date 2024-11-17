@@ -5,32 +5,77 @@ plugins {
 }
 
 android {
-    namespace = "com.example.rl_inventory"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    namespace "com.project.rlinventory"
+
+    compileSdkVersion 34
+
+    ndkVersion = "23.1.7779620"
+
+    defaultConfig {
+        applicationId "com.project.rlinventory"
+        minSdkVersion 26
+        targetSdkVersion 34
+        versionCode 1
+        versionName "1.0"
+
+        // Aggiunta delle configurazioni necessarie per l'uso di Bluetooth, NFC, e autenticazione biometrica
+        vectorDrawables {
+            useSupportLibrary = true
+        }
+    }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
-    }
-
-    defaultConfig {
-        applicationId = "com.example.rl_inventory"
-        minSdk = 26  // Aggiornato da 23 a 26
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        jvmTarget = "1.8"
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.debug
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
         }
     }
+
+    sourceSets {
+        main {
+            java {
+                srcDirs += 'src/main/java'
+            }
+        }
+    }
+}
+
+ext {
+    kotlin_version = "1.8.0" // Definizione esplicita della versione di Kotlin
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    implementation 'com.google.android.material:material:1.8.0' // Aggiornata per supportare le ultime versioni di Material Design
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.1'
+    implementation 'androidx.core:core-ktx:1.9.0'
+
+    // Dipendenze per Bluetooth (Flutter Bluetooth Serial)
+    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
+    implementation 'androidx.recyclerview:recyclerview:1.2.1'
+    implementation 'com.google.guava:guava:31.0.1-android' // Necessaria per flutter_bluetooth_serial
+
+    // Dipendenza per autenticazione biometrica
+    implementation 'androidx.biometric:biometric:1.2.0-alpha04'
+
+    // Dipendenza per NFC (può essere utile, in caso di necessità di gestire direttamente NFC)
+    implementation 'com.github.devnied.emvnfccard:library:3.0.1' // Libreria per la gestione NFC
+
+    // Dipendenza per l'uso di permessi
+    implementation 'com.karumi:dexter:6.2.2' // Libreria per una gestione semplice dei permessi (opzionale)
+
+    // Eventuali altre dipendenze del progetto
 }
 
 flutter {

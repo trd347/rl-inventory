@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rl_inventory/gen/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart'; // Import per l'autenticazione biometrica
 
 class LoginPage extends StatefulWidget {
   final Function onLogin; // Aggiungi la funzione per gestire il login
@@ -14,25 +15,49 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final LocalAuthentication auth =
+      LocalAuthentication(); // Istanza per l'autenticazione biometrica
 
   void _login() async {
     String email = _emailController.text;
     String password = _passwordController.text;
 
     if (email.isNotEmpty && password.isNotEmpty) {
-      // Qui puoi implementare la logica di autenticazione se necessario
-      // Per esempio, potresti verificare le credenziali con un backend.
-      // Per ora, simuleremo il login
-
+      // Simuliamo il login per ora
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-          'email', email); // Salva l'email dell'utente per esempio
+      await prefs.setString('email', email); // Salva l'email dell'utente
+      await prefs.setBool('isLoggedIn', true); // Salva lo stato di login
       widget.onLogin(); // Chiama la funzione di login passata dal MyApp
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!.loginErrorMessage),
+        ),
+      );
+    }
+  }
+
+  void _loginWithBiometrics() async {
+    try {
+      bool authenticated = await auth.authenticate(
+        localizedReason: 'Please authenticate to log in',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      );
+
+      if (authenticated) {
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isLoggedIn', true); // Salva lo stato di login
+        widget.onLogin(); // Chiama la funzione di login passata dal MyApp
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Biometric authentication failed: \$e'),
         ),
       );
     }
@@ -77,6 +102,12 @@ class _LoginPageState extends State<LoginPage> {
             ElevatedButton(
               onPressed: _login,
               child: Text(AppLocalizations.of(context)!.loginButton),
+            ),
+            SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: _loginWithBiometrics,
+              icon: Icon(Icons.fingerprint),
+              label: Text('Login with Biometrics'),
             ),
             TextButton(
               onPressed: () {
