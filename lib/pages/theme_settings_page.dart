@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 class ThemeSettingsPage extends StatefulWidget {
-  final Function(dynamic, dynamic) onThemeChanged;
+  final Function(Color, Color) onThemeChanged;
 
   ThemeSettingsPage({required this.onThemeChanged});
 
@@ -30,7 +30,6 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
       _secondaryColor =
           Color(prefs.getInt('secondaryColor') ?? Colors.orange.value);
     });
-    _applyTheme();
   }
 
   Future<void> _saveThemeSettings() async {
@@ -44,7 +43,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
     setState(() {
       _primaryColor = color;
     });
-    _applyTheme();
+    widget.onThemeChanged(_primaryColor, _secondaryColor);
     _saveThemeSettings();
   }
 
@@ -52,7 +51,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
     setState(() {
       _secondaryColor = color;
     });
-    _applyTheme();
+    widget.onThemeChanged(_primaryColor, _secondaryColor);
     _saveThemeSettings();
   }
 
@@ -60,36 +59,9 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
     setState(() {
       _isDarkMode = value;
     });
-    _applyTheme();
-    _saveThemeSettings();
-  }
-
-  void _applyTheme() {
     widget.onThemeChanged(
-      _isDarkMode
-          ? ThemeData.dark()
-          : ThemeData.light().copyWith(
-              colorScheme: ColorScheme.light(
-                primary: _primaryColor,
-                secondary: _secondaryColor,
-              ),
-              buttonTheme: ButtonThemeData(
-                buttonColor: _primaryColor,
-                textTheme: ButtonTextTheme.primary,
-              ),
-              floatingActionButtonTheme: FloatingActionButtonThemeData(
-                backgroundColor: _secondaryColor,
-              ),
-              appBarTheme: AppBarTheme(
-                backgroundColor: _primaryColor,
-              ),
-              bottomNavigationBarTheme: BottomNavigationBarThemeData(
-                selectedItemColor: _secondaryColor,
-                unselectedItemColor: Colors.grey,
-              ),
-            ),
-      _secondaryColor,
-    );
+        _primaryColor, _secondaryColor); // Notify main app of theme change
+    _saveThemeSettings();
   }
 
   @override
